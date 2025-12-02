@@ -47,3 +47,28 @@ Continuous integration: a simple GitHub Action checks Python syntax on push/pull
 - This is intentionally minimal; you can extend it with syntax highlighting (for example using `GtkSourceView`), preferences, or packaging helpers.
 
 If you want, I can add a `.desktop` file, packaging instructions, or port the app to GTK4.
+
+## Desktop launcher
+
+The repository now includes a `notepad.desktop` file that you can install to make the app available from your desktop environment's application menu.
+
+To install for the current user (recommended):
+
+```bash
+# copy to local applications
+mkdir -p ~/.local/share/applications
+cp notepad.desktop ~/.local/share/applications/
+# make the script executable and ensure Exec points to the correct path
+chmod +x notepad.py
+# If the launcher doesn't start the app, edit the copied file and set `Exec` to the full path:
+# Exec=/home/<you>/workspace/notepad/notepad.py %f
+```
+
+To install system-wide (requires root):
+
+```bash
+sudo cp notepad.desktop /usr/share/applications/
+sudo chmod 644 /usr/share/applications/notepad.desktop
+```
+
+After installing, the launcher should appear in your desktop environment's app menu. You can also drag it to your favorites or create a shortcut.

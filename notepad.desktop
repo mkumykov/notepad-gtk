@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Notepad (GTK)
+Comment=Simple notepad-style text editor (GTK)
+Exec=python3 %f
+Icon=text-editor
+Terminal=false
+Type=Application
+Categories=Utility;TextEditor;
+MimeType=text/plain;
+StartupWMClass=Notepad
