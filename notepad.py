@@ -129,17 +129,36 @@ class NotepadWindow(Gtk.Window):
         edit_menu.append(paste_item)
 
         selectall_item = Gtk.MenuItem.new_with_label('Select All')
-        selectall_item.connect('activate', lambda w: self.select_all())
-        edit_menu.append(selectall_item)
-
+            paste_item = Gtk.MenuItem.new_with_label('Paste')
+            paste_item.connect('activate', lambda w: self.textview.get_buffer().paste_clipboard(Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD), None, True))
+            edit_menu.append(paste_item)
         find_item = Gtk.MenuItem.new_with_label('Find/Replace...')
         find_item.connect('activate', lambda w: self.show_find_dialog())
         edit_menu.append(find_item)
 
         menubar.append(edit_item)
+            # Additional edit helpers
+            edit_menu.append(Gtk.SeparatorMenuItem())
 
-        # View
-        view_menu = Gtk.Menu()
+            delete_line_item = Gtk.MenuItem.new_with_label('Delete Line')
+            delete_line_item.connect('activate', lambda w: self.delete_line())
+            edit_menu.append(delete_line_item)
+
+            duplicate_line_item = Gtk.MenuItem.new_with_label('Duplicate Line')
+            duplicate_line_item.connect('activate', lambda w: self.duplicate_line())
+            edit_menu.append(duplicate_line_item)
+
+            insert_dt_item = Gtk.MenuItem.new_with_label('Insert Date/Time')
+            insert_dt_item.connect('activate', lambda w: self.insert_datetime())
+            edit_menu.append(insert_dt_item)
+
+            goto_item = Gtk.MenuItem.new_with_label('Go To Line...')
+            goto_item.connect('activate', lambda w: self.show_goto_dialog())
+            edit_menu.append(goto_item)
+
+            find_item = Gtk.MenuItem.new_with_label('Find/Replace...')
+            find_item.connect('activate', lambda w: self.show_find_dialog())
+            edit_menu.append(find_item)
         view_item = Gtk.MenuItem.new_with_label('View')
         view_item.set_submenu(view_menu)
 
@@ -218,6 +237,22 @@ class NotepadWindow(Gtk.Window):
         accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.show_find_dialog())
         key, mod = Gtk.accelerator_parse('<Control>h')
         accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.show_find_dialog())
+        # Cut/Copy/Paste
+        key, mod = Gtk.accelerator_parse('<Control>x')
+        accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.textbuffer.cut_clipboard(Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD), True))
+        key, mod = Gtk.accelerator_parse('<Control>c')
+        accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.textbuffer.copy_clipboard(Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)))
+        key, mod = Gtk.accelerator_parse('<Control>v')
+        accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.textbuffer.paste_clipboard(Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD), None, True))
+        # Other edit shortcuts
+        key, mod = Gtk.accelerator_parse('<Control><Shift>d')
+        accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.duplicate_line())
+        key, mod = Gtk.accelerator_parse('<Control>g')
+        accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.show_goto_dialog())
+        key, mod = Gtk.accelerator_parse('<Control>l')
+        accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.delete_line())
+        key, mod = Gtk.accelerator_parse('<Control>t')
+        accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.insert_datetime())
 
     def new_file(self):
         if not self._maybe_save():
@@ -509,6 +544,70 @@ class NotepadWindow(Gtk.Window):
         else:
             self._message('Replace All', f'Replaced {count} occurrence(s)')
             self._push_undo_snapshot()
+
+    # --- Additional edit helpers ---
+    def delete_line(self):
+        iter_ = self.textbuffer.get_iter_at_mark(self.textbuffer.get_insert())
+        line_start = iter_.copy()
+        line_start.set_line_offset(0)
+        line_end = line_start.copy()
+        if not line_end.ends_line():
+            line_end.forward_to_line_end()
+        # also remove trailing newline if present
+        next_iter = line_end.copy()
+        if next_iter.forward_char() and next_iter.get_char() == '\n':
+            # include newline
+            self.textbuffer.delete(line_start, next_iter)
+        else:
+            self.textbuffer.delete(line_start, line_end)
+        self._push_undo_snapshot()
+
+    def duplicate_line(self):
+        iter_ = self.textbuffer.get_iter_at_mark(self.textbuffer.get_insert())
+        line_start = iter_.copy()
+        line_start.set_line_offset(0)
+        line_end = line_start.copy()
+        if not line_end.ends_line():
+            line_end.forward_to_line_end()
+        text = self.textbuffer.get_text(line_start, line_end, True)
+        # insert after line_end
+        insert_at = line_end.copy()
+        if not insert_at.ends_line():
+            insert_at.forward_char()
+            self.textbuffer.insert(insert_at, '\n' + text)
+        else:
+            # line_end is at line end; insert a newline+text
+            self.textbuffer.insert(insert_at, '\n' + text)
+        self._push_undo_snapshot()
+
+    def insert_datetime(self):
+        import datetime
+        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        mark = self.textbuffer.get_insert()
+        iter_ = self.textbuffer.get_iter_at_mark(mark)
+        self.textbuffer.insert(iter_, now)
+        self._push_undo_snapshot()
+
+    def show_goto_dialog(self):
+        dialog = Gtk.Dialog(title='Go To Line', transient_for=self, modal=True)
+        dialog.add_buttons('Go', Gtk.ResponseType.OK, Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
+        content = dialog.get_content_area()
+        entry = Gtk.Entry()
+        entry.set_placeholder_text('Line number (1-based)')
+        content.pack_start(entry, True, True, 6)
+        dialog.show_all()
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            try:
+                n = int(entry.get_text())
+                if n < 1:
+                    raise ValueError()
+                iter_ = self.textbuffer.get_iter_at_line(n - 1)
+                self.textbuffer.place_cursor(iter_)
+                self.textview.scroll_to_iter(iter_, 0.1, use_align=True, xalign=0.5, yalign=0.0)
+            except Exception:
+                self._message('Go To Line', 'Invalid line number')
+        dialog.destroy()
 
 
 def main():
