@@ -1,6 +1,6 @@
 # Notepad (GTK) — simple text editor
 
-This is a small Notepad-like text editor implemented in Python using GTK3 (PyGObject). It provides basic functionality: New/Open/Save, cut/copy/paste, undo/redo (snapshot-based), word wrap toggle, and a statusbar showing line/column.
+This is a small Notepad-like text editor implemented in Python using GTK3 (PyGObject). It provides basic functionality: New/Open/Save, cut/copy/paste, undo/redo (snapshot-based), word wrap toggle, Find/Replace, and a statusbar showing line/column.
 
 ## Requirements
 
@@ -37,3 +37,13 @@ python3 ~/workspace/notepad/notepad.py
 - `~/workspace/notepad/notepad.py` — main application
 - `~/workspace/notepad/requirements.txt` — pip-style requirements placeholder
 
+Repository: https://github.com/mkumykov/notepad-gtk
+
+Continuous integration: a simple GitHub Action checks Python syntax on push/pull requests.
+
+## Notes
+
+- Undo/Redo is implemented using periodic snapshots to keep implementation small and avoid external dependencies. It works well for normal typing but is not a fine-grained operation history.
+- This is intentionally minimal; you can extend it with syntax highlighting (for example using `GtkSourceView`), preferences, or packaging helpers.
+
+If you want, I can add a `.desktop` file, packaging instructions, or port the app to GTK4.

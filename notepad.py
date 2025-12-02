@@ -132,6 +132,10 @@ class NotepadWindow(Gtk.Window):
         selectall_item.connect('activate', lambda w: self.select_all())
         edit_menu.append(selectall_item)
 
+        find_item = Gtk.MenuItem.new_with_label('Find/Replace...')
+        find_item.connect('activate', lambda w: self.show_find_dialog())
+        edit_menu.append(find_item)
+
         menubar.append(edit_item)
 
         # View
@@ -210,6 +214,10 @@ class NotepadWindow(Gtk.Window):
         accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.redo())
         key, mod = Gtk.accelerator_parse('<Control>a')
         accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.select_all())
+        key, mod = Gtk.accelerator_parse('<Control>f')
+        accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.show_find_dialog())
+        key, mod = Gtk.accelerator_parse('<Control>h')
+        accel_group.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *args: self.show_find_dialog())
 
     def new_file(self):
         if not self._maybe_save():
@@ -386,6 +394,121 @@ class NotepadWindow(Gtk.Window):
         if not self._maybe_save():
             return
         Gtk.main_quit()
+
+    # --- Find / Replace dialog ---
+    def show_find_dialog(self):
+        dialog = Gtk.Dialog(title='Find / Replace', transient_for=self, modal=True)
+        dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+        content = dialog.get_content_area()
+
+        grid = Gtk.Grid(column_spacing=6, row_spacing=6, margin=12)
+
+        lbl_find = Gtk.Label(label='Find:')
+        self.entry_find = Gtk.Entry()
+        lbl_replace = Gtk.Label(label='Replace:')
+        self.entry_replace = Gtk.Entry()
+
+        self.check_case = Gtk.CheckButton(label='Case sensitive')
+
+        btn_find_next = Gtk.Button(label='Find Next')
+        btn_replace = Gtk.Button(label='Replace')
+        btn_replace_all = Gtk.Button(label='Replace All')
+
+        btn_find_next.connect('clicked', lambda w: self.find_next())
+        btn_replace.connect('clicked', lambda w: self.replace_once())
+        btn_replace_all.connect('clicked', lambda w: self.replace_all())
+
+        grid.attach(lbl_find, 0, 0, 1, 1)
+        grid.attach(self.entry_find, 1, 0, 2, 1)
+        grid.attach(lbl_replace, 0, 1, 1, 1)
+        grid.attach(self.entry_replace, 1, 1, 2, 1)
+        grid.attach(self.check_case, 0, 2, 3, 1)
+        grid.attach(btn_find_next, 0, 3, 1, 1)
+        grid.attach(btn_replace, 1, 3, 1, 1)
+        grid.attach(btn_replace_all, 2, 3, 1, 1)
+
+        content.pack_start(grid, True, True, 0)
+        dialog.show_all()
+
+        response = dialog.run()
+        dialog.destroy()
+        return response
+
+    def _search_from_iter(self, start_iter, pattern, case_sensitive=False):
+        flags = Gtk.TextSearchFlags.TEXT_SEARCH_VISIBLE_ONLY
+        if not case_sensitive:
+            flags = 0
+        # use forward_search on TextBuffer
+        result = self.textbuffer.forward_search(pattern, flags, start_iter)
+        return result
+
+    def find_next(self):
+        pattern = self.entry_find.get_text()
+        if not pattern:
+            return
+        insert_mark = self.textbuffer.get_insert()
+        start_iter = self.textbuffer.get_iter_at_mark(insert_mark)
+        # start search after current insert
+        if not start_iter.ends_line() and start_iter.forward_char():
+            pass
+        res = self._search_from_iter(start_iter, pattern, self.check_case.get_active())
+        if not res:
+            # wrap-around search
+            start = self.textbuffer.get_start_iter()
+            res = self._search_from_iter(start, pattern, self.check_case.get_active())
+            if not res:
+                self._message('Find', 'Pattern not found')
+                return
+        match_start, match_end = res
+        self.textbuffer.select_range(match_start, match_end)
+        self.textview.scroll_to_iter(match_start, 0.1, use_align=True, xalign=0.5, yalign=0.5)
+
+    def replace_once(self):
+        sel_bounds = self.textbuffer.get_selection_bounds()
+        if sel_bounds:
+            start, end = sel_bounds
+            # replace selection
+            self.textbuffer.begin_user_action()
+            self.textbuffer.delete(start, end)
+            self.textbuffer.insert(start, self.entry_replace.get_text())
+            self.textbuffer.end_user_action()
+            self._push_undo_snapshot()
+        else:
+            # find next then replace
+            self.find_next()
+            sel_bounds = self.textbuffer.get_selection_bounds()
+            if sel_bounds:
+                start, end = sel_bounds
+                self.textbuffer.begin_user_action()
+                self.textbuffer.delete(start, end)
+                self.textbuffer.insert(start, self.entry_replace.get_text())
+                self.textbuffer.end_user_action()
+                self._push_undo_snapshot()
+
+    def replace_all(self):
+        pattern = self.entry_find.get_text()
+        if not pattern:
+            return
+        replace_text = self.entry_replace.get_text()
+        iter_ = self.textbuffer.get_start_iter()
+        count = 0
+        while True:
+            res = self._search_from_iter(iter_, pattern, self.check_case.get_active())
+            if not res:
+                break
+            start, end = res
+            self.textbuffer.begin_user_action()
+            self.textbuffer.delete(start, end)
+            self.textbuffer.insert(start, replace_text)
+            self.textbuffer.end_user_action()
+            count += 1
+            # continue after replacement
+            iter_ = start
+        if count == 0:
+            self._message('Replace All', 'No matches found')
+        else:
+            self._message('Replace All', f'Replaced {count} occurrence(s)')
+            self._push_undo_snapshot()
 
 
 def main():
