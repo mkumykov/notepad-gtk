@@ -129,36 +129,36 @@ class NotepadWindow(Gtk.Window):
         edit_menu.append(paste_item)
 
         selectall_item = Gtk.MenuItem.new_with_label('Select All')
-            paste_item = Gtk.MenuItem.new_with_label('Paste')
-            paste_item.connect('activate', lambda w: self.textview.get_buffer().paste_clipboard(Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD), None, True))
-            edit_menu.append(paste_item)
+        selectall_item.connect('activate', lambda w: self.select_all())
+        edit_menu.append(selectall_item)
+
         find_item = Gtk.MenuItem.new_with_label('Find/Replace...')
         find_item.connect('activate', lambda w: self.show_find_dialog())
         edit_menu.append(find_item)
 
         menubar.append(edit_item)
-            # Additional edit helpers
-            edit_menu.append(Gtk.SeparatorMenuItem())
 
-            delete_line_item = Gtk.MenuItem.new_with_label('Delete Line')
-            delete_line_item.connect('activate', lambda w: self.delete_line())
-            edit_menu.append(delete_line_item)
+        # Additional edit helpers
+        edit_menu.append(Gtk.SeparatorMenuItem())
 
-            duplicate_line_item = Gtk.MenuItem.new_with_label('Duplicate Line')
-            duplicate_line_item.connect('activate', lambda w: self.duplicate_line())
-            edit_menu.append(duplicate_line_item)
+        delete_line_item = Gtk.MenuItem.new_with_label('Delete Line')
+        delete_line_item.connect('activate', lambda w: self.delete_line())
+        edit_menu.append(delete_line_item)
 
-            insert_dt_item = Gtk.MenuItem.new_with_label('Insert Date/Time')
-            insert_dt_item.connect('activate', lambda w: self.insert_datetime())
-            edit_menu.append(insert_dt_item)
+        duplicate_line_item = Gtk.MenuItem.new_with_label('Duplicate Line')
+        duplicate_line_item.connect('activate', lambda w: self.duplicate_line())
+        edit_menu.append(duplicate_line_item)
 
-            goto_item = Gtk.MenuItem.new_with_label('Go To Line...')
-            goto_item.connect('activate', lambda w: self.show_goto_dialog())
-            edit_menu.append(goto_item)
+        insert_dt_item = Gtk.MenuItem.new_with_label('Insert Date/Time')
+        insert_dt_item.connect('activate', lambda w: self.insert_datetime())
+        edit_menu.append(insert_dt_item)
 
-            find_item = Gtk.MenuItem.new_with_label('Find/Replace...')
-            find_item.connect('activate', lambda w: self.show_find_dialog())
-            edit_menu.append(find_item)
+        goto_item = Gtk.MenuItem.new_with_label('Go To Line...')
+        goto_item.connect('activate', lambda w: self.show_goto_dialog())
+        edit_menu.append(goto_item)
+
+        # View menu
+        view_menu = Gtk.Menu()
         view_item = Gtk.MenuItem.new_with_label('View')
         view_item.set_submenu(view_menu)
 
