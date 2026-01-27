@@ -423,7 +423,8 @@ class NotepadWindow(Gtk.Window):
     def on_delete_event(self, *args):
         if not self._maybe_save():
             return True
-        return False
+        Gtk.main_quit()
+        #return False
 
     def on_quit(self):
         if not self._maybe_save():
