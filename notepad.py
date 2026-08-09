@@ -274,19 +274,24 @@ class NotepadWindow(Gtk.Window):
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
             path = dialog.get_filename()
-            try:
-                with open(path, 'r', encoding='utf-8') as f:
-                    text = f.read()
-                self.textbuffer.set_text(text)
-                self.current_file = path
-                self.dirty = False
-                self.set_title(f'Notepad - {os.path.basename(path)}')
-                self.undo_stack = []
-                self.redo_stack = []
-                self._push_undo_snapshot()
-            except Exception as e:
-                self._message('Error', f'Could not open file:\n{e}')
+            self.load_file(path)
         dialog.destroy()
+
+    def load_file(self, path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                text = f.read()
+            self.textbuffer.set_text(text)
+            self.current_file = path
+            self.dirty = False
+            self.set_title(f'Notepad - {os.path.basename(path)}')
+            self.undo_stack = []
+            self.redo_stack = []
+            self._push_undo_snapshot()
+            return True
+        except Exception as e:
+            self._message('Error', f'Could not open file:\n{e}')
+            return False
 
     def save_file(self):
         if self.current_file:
@@ -613,6 +618,8 @@ class NotepadWindow(Gtk.Window):
 
 def main():
     app = NotepadWindow()
+    if len(sys.argv) > 1:
+        app.load_file(os.path.abspath(sys.argv[1]))
     app.show_all()
     Gtk.main()
 
